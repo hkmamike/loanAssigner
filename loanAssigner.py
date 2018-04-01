@@ -24,6 +24,9 @@
 #########################################
 import csv
 import math
+import time
+
+start = time.time()
 
 #########################################
 # Data model
@@ -177,7 +180,6 @@ def checkRisk (risk, tolerance):
     if tolerance >= risk:
         return True
     else:
-        print('risk covenant failed: ', tolerance, risk)
         return False
 
 def checkState (state, banned):
@@ -231,8 +233,7 @@ with open('loans.csv','r') as f:
 
                 # check bank's general covenants
                 checkBank = facilities[i].bankID
-                print(covenantsG)
-                if covenantsG: 
+                if covenantsG and covenantsG[checkBank] :
                     for j in range (len(covenantsG[checkBank])):
                         cov = covenantsG[checkBank][j]
                         if not checkRisk(defaultChance, cov.defaultTolerance):
@@ -240,10 +241,7 @@ with open('loans.csv','r') as f:
                         if not checkState(state, cov.banState):
                             raise Exception()
 
-                print('general covenants test passed')
-
                 # if all checks passed, assign loan
-                print('assigning loan', loanID, i)
                 assignLoan(loanID, i, yieldAmount)
                 break
 
@@ -270,6 +268,10 @@ with open('yields.csv', 'w') as f2:
         writer.writerow({'facility_id': facilities[i].id, 'expected_yield': facilities[i].expectedYield})
 f2.close()
 
+end = time.time()
+duration = end - start
+print('assignment finished, total runtime:', duration)
+print('assignments.csv and yields.csv have been created')
 
 #########################################
 # Tests
