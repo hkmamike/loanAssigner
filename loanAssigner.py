@@ -23,7 +23,7 @@
 # Import stuff
 #########################################
 import csv
-
+import math
 
 #########################################
 # Data model
@@ -111,10 +111,10 @@ with open('covenants.csv','r') as f:
         bankID = int(row[2])
         facilityID = int(row[0])
 
-        if row[1]:
-            defaultTolerance = float(row[1])
+        if row[1] =='':
+            defaultTolerance = float('inf')
         else:
-            defaultTolerance = 0
+            defaultTolerance = float(row[1])
 
         banState = row[3].strip()
 
@@ -177,6 +177,7 @@ def checkRisk (risk, tolerance):
     if tolerance >= risk:
         return True
     else:
+        print('risk covenant failed: ', tolerance, risk)
         return False
 
 def checkState (state, banned):
@@ -213,15 +214,16 @@ with open('loans.csv','r') as f:
         # identify cheapest valid facility
         for i in facilitiesSorted:
             try:
-                yieldAmount = checkYield(defaultChance, rate, amount, facilities[i].rate)
+                # round down to 2 decimals
+                yieldAmount = int(round(checkYield(defaultChance, rate, amount, facilities[i].rate)))
                 if yieldAmount < 0:
                     raise Exception()
                 if not checkAmount(amount, facilities[i].remaining):
                     raise Exception()
 
                 # check facility specific covenants 
-                for j in covenantsS[i]:
-                    cov = covenantsS[i]
+                for j in range (len(covenantsS[i])):
+                    cov = covenantsS[i][j]
                     if not checkRisk(defaultChance, cov.defaultTolerance):
                         raise Exception()
                     if not checkState(state, cov.banState):
@@ -229,14 +231,19 @@ with open('loans.csv','r') as f:
 
                 # check bank's general covenants
                 checkBank = facilities[i].bankID
-                for j in covenantsG[checkBank]:
-                    cov = covenantsG[checkBank]
-                    if not checkRisk(defaultChance, cov.defaultTolerance):
-                        raise Exception()
-                    if not checkState(state, cov.banState):
-                        raise Exception()
+                print(covenantsG)
+                if covenantsG: 
+                    for j in range (len(covenantsG[checkBank])):
+                        cov = covenantsG[checkBank][j]
+                        if not checkRisk(defaultChance, cov.defaultTolerance):
+                            raise Exception()
+                        if not checkState(state, cov.banState):
+                            raise Exception()
+
+                print('general covenants test passed')
 
                 # if all checks passed, assign loan
+                print('assigning loan', loanID, i)
                 assignLoan(loanID, i, yieldAmount)
                 break
 
@@ -247,15 +254,27 @@ with open('loans.csv','r') as f:
 # Generate output
 #########################################
 
-with open('assignments.csv', 'w') as f:
+with open('assignments.csv', 'w') as f1:
+    fieldNames = ['loan_id', 'facility_id']
+    writer = csv.DictWriter(f1, fieldnames = fieldNames)
+    writer.writeheader()
     for i in loans:
-        f.write(loans[i].id, loans[i].facilityID)
+        writer.writerow({'loan_id': loans[i].id, 'facility_id': loans[i].facilityID})
+f1.close()
+
+with open('yields.csv', 'w') as f2:
+    fieldNames = ['facility_id', 'expected_yield']
+    writer = csv.DictWriter(f2, fieldnames = fieldNames)
+    writer.writeheader()
+    for i in facilities:
+        writer.writerow({'facility_id': facilities[i].id, 'expected_yield': facilities[i].expectedYield})
+f2.close()
 
 
 #########################################
 # Tests
 #########################################
 
-print('False: ', checkAmount (160,150))
-print('True: ', checkAmount (150,150))
-print('True: ', checkAmount (149,150.00))
+# print('False: ', checkAmount (160,150))
+# print('True: ', checkAmount (150,150))
+# print('True: ', checkAmount (149,150.00))
