@@ -30,7 +30,7 @@ start = time.time()
 
 #########################################
 # Data model
-# define objects for: facility, bank, covenant, loan
+# define objects for: facility, bank(currently not utilized), covenant, loan
 #########################################
 
 # hashMaps for processing
@@ -82,7 +82,7 @@ class loan:
 
 #########################################
 # Read Input
-# read facilities.csv, banks.csv, and covenants.csv, populating objects' hashMaps
+# read facilities.csv, banks.csv (currently not utilized), and covenants.csv, populating objects' hashMaps
 # this section is input file format specific
 #########################################
 
@@ -95,6 +95,7 @@ with open('banks.csv','r') as f:
         name = row[1]
         # add to object hashMap
         banks[bankID] = bank(bankID, name)
+f.close()
 
 with open('facilities.csv','r') as f:
     reader = csv.reader(f)
@@ -105,6 +106,7 @@ with open('facilities.csv','r') as f:
         bankID = int(row[3])
         # add to object hashMap
         facilities[facilityID] = facility(facilityID, bankID, float(row[0]), float(row[1]))
+f.close()
 
 with open('covenants.csv','r') as f:
     reader = csv.reader(f)
@@ -112,9 +114,13 @@ with open('covenants.csv','r') as f:
     next(reader, None)
     for row in reader:
         bankID = int(row[2])
-        facilityID = int(row[0])
 
-        if row[1] =='':
+        if row[0] == '':
+            facilityID = None
+        else:
+            facilityID = int(row[0])
+
+        if row[1] == '':
             defaultTolerance = float('inf')
         else:
             defaultTolerance = float(row[1])
@@ -139,6 +145,7 @@ with open('covenants.csv','r') as f:
                 covenantsS[facilityID].append(newCovenant)
             else:
                 covenantsS[facilityID] = [newCovenant]
+f.close()
 
 
 #########################################
@@ -215,6 +222,7 @@ with open('loans.csv','r') as f:
 
         # identify cheapest valid facility
         for i in facilitiesSorted:
+
             try:
                 # round down to 2 decimals
                 yieldAmount = int(round(checkYield(defaultChance, rate, amount, facilities[i].rate)))
@@ -233,7 +241,8 @@ with open('loans.csv','r') as f:
 
                 # check bank's general covenants
                 checkBank = facilities[i].bankID
-                if covenantsG and covenantsG[checkBank] :
+
+                if checkBank in covenantsG :
                     for j in range (len(covenantsG[checkBank])):
                         cov = covenantsG[checkBank][j]
                         if not checkRisk(defaultChance, cov.defaultTolerance):
@@ -246,6 +255,8 @@ with open('loans.csv','r') as f:
                 break
 
             except Exception:
+                if i == facilitiesSorted[-1]:
+                    print('no facility match found for: %d') % loanID
                 continue
 
 #########################################
@@ -270,8 +281,9 @@ f2.close()
 
 end = time.time()
 duration = end - start
-print('assignment finished, total runtime:', duration)
+print ('assignment finished, total runtime: %5.4f ms') % (duration*1000)
 print('assignments.csv and yields.csv have been created')
+
 
 #########################################
 # Tests
