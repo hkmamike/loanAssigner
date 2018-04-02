@@ -13,8 +13,7 @@
 #   3) Stream process each loan >
 #       a) for each loan, check facilities in ascending cost order
 #       b) check_yield(), check_amount(), check_risk(), check_state()
-#       c) assign loan to first passing facility, update data model
-#   4) Generate Output Files
+#       c) assign loan to first passing facility, update data model, generate Output
 #
 #########################################
 
@@ -30,14 +29,12 @@ start = time.time()
 
 #########################################
 # Data model & Functions
-# define objects for: Facility, Covenant, Loan
+# define objects for: Facility, Covenant
 # define functions check_yield(), check_amount(), check_risk(), check_state(), assign_loan(), call_all_checks()
 #########################################
 
 class LoanProcessor:
-    banks = {}
-    facilities = {}
-    loans = {}
+    facilities = {}         # indexed by facilityID
     covenantsG = {}         # general covenants are indexed by bankID
     covenantsS = {}         # specific covenants are indexed by facilityID
     assignment = []         # for generating output
@@ -81,13 +78,14 @@ class LoanProcessor:
         if not self.check_amount(amount, self.facilities[i].remaining):
             return False
 
-        # check facility specific covenants 
-        for j in range (len(self.covenantsS[i])):
-            cov = self.covenantsS[i][j]
-            if not self.check_risk(defaultChance, cov.defaultTolerance):
-                return False
-            if not self.check_state(state, cov.banState):
-                return False
+        # check facility specific covenants
+        if i in self.covenantsS:
+            for j in range (len(self.covenantsS[i])):
+                cov = self.covenantsS[i][j]
+                if not self.check_risk(defaultChance, cov.defaultTolerance):
+                    return False
+                if not self.check_state(state, cov.banState):
+                    return False
 
         # check bank's general covenants
         checkBank = self.facilities[i].bankID
@@ -127,16 +125,6 @@ class Covenant:
         self.defaultTolerance = var3
         self.banState = var4
         self.general = var5
-
-# class Loan:
-#     def __init__(self, var1, var2, var3, var4, var5):
-#         self.id = var1
-#         self.state = var2
-#         self.amount = var3
-#         self.rate = var4
-#         self.defaultChance = var5
-#         self.facilityID = None
-
 
 #########################################
 # Read Input
@@ -214,6 +202,7 @@ LoanProcessor.facilitiesSorted = list( zip(*LoanProcessor.facilitiesSorted)[0] )
 #########################################
 # Process Loans & Generate Output
 #########################################
+
 with open('assignments.csv', 'w') as f1:
     fieldNames = ['loan_id', 'facility_id']
     writer = csv.DictWriter(f1, fieldnames = fieldNames)
@@ -233,8 +222,7 @@ with open('assignments.csv', 'w') as f1:
             # LoanProcessor.loans[loanID] = Loan(loanID, state, amount, rate, defaultChance)
 
             # identify cheapest valid facility
-            # this for loop can be optimized to start with the first facility that is not filled
-            # we can close facilities that have remaining amount less than X
+            # this for-loop can be optimized to start with the first facility that is not filled (remaining available amount < X)
             for i in LoanProcessor.facilitiesSorted:
                 processor = LoanProcessor()
 
@@ -265,12 +253,3 @@ end = time.time()
 duration = end - start
 print('assignment finished, total runtime: %5.4f ms') % (duration*1000)
 print('assignments.csv and yields.csv have been created')
-
-
-#########################################
-# Tests
-#########################################
-
-# print('False: ', check_amount (160,150))
-# print('True: ', check_amount (150,150))
-# print('True: ', check_amount (149,150.00))
